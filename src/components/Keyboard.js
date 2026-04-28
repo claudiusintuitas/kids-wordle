@@ -152,8 +152,8 @@ export default function Keyboard({ onKey, letterStatuses = {} }) {
   const availableW        = W - horizontalPadding * 2 - gap * (widestRowKeys - 1);
   const keyWidth          = Math.floor(availableW / widestRowSlots);
 
-  // Keyboard ~32% of screen — guess grid above takes priority for size.
-  const targetKeyboardH = Math.min(H * 0.32, 420);
+  // 30% smaller bubbles — keyboard takes ~22% of screen now.
+  const targetKeyboardH = Math.min(H * 0.22, 300);
   const verticalGap     = 5;
   const rowCount        = 5;
   const keyHeight       = Math.min(
