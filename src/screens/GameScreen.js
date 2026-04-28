@@ -5,7 +5,7 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import Mascot           from '../components/Mascot';
+import Mascot, { pickRandomMascot } from '../components/Mascot';
 import LetterTile        from '../components/LetterTile';
 import Keyboard          from '../components/Keyboard';
 import Confetti          from '../components/Confetti';
@@ -14,7 +14,22 @@ import { getRandomWord } from '../data/wordlists';
 import { evaluateGuess, isWin, buildLetterStatuses } from '../utils/gameLogic';
 import {
   playBubble, playMeow, playSurprise, playFanfare, playWrong, playCorrect, playCharm, playCritter,
+  playMonkey, playElephant, playOwl, playDinosaur,
 } from '../utils/sounds';
+
+// Each mascot has a signature sound played on big moments (e.g. on win).
+const MASCOT_SOUND = {
+  cat:      playMeow,
+  dog:      playCritter,    // no real dog bark fetched — random critter is cute
+  monkey:   playMonkey,
+  dinosaur: playDinosaur,
+  fox:      playCritter,
+  panda:    playCritter,
+  bear:     playElephant,   // bears growl, elephant works as a placeholder
+  frog:     playCritter,
+  unicorn:  playCritter,
+  penguin:  playOwl,
+};
 
 const MAX_GUESSES    = 8;
 const REVEAL_DELAY   = 340;
@@ -24,6 +39,8 @@ const { width: W, height: H } = Dimensions.get('window');
 
 export default function GameScreen({ wordLength, onGoHome }) {
   const [targetWord]      = useState(() => getRandomWord(wordLength));
+  // Pick a random mascot for this game — cat / dog / monkey / dino / fox / etc.
+  const [mascot]          = useState(() => pickRandomMascot());
   const [guesses, setGuesses]         = useState([]);
   const [currentLetters, setCurrentLetters] = useState([]);
   const [gameStatus, setGameStatus]   = useState('playing');
@@ -107,8 +124,9 @@ export default function GameScreen({ wordLength, onGoHome }) {
           setShowConfetti(true);
           playFanfare();
           showPopup('win', 5);
-          // Meow after a short delay for extra delight
-          setTimeout(() => playMeow(), 600);
+          // Mascot's signature sound after a short delay for extra delight
+          const signature = MASCOT_SOUND[mascot.name] || playMeow;
+          setTimeout(() => signature(), 600);
           setIsLocked(true);
         } else if (newGuesses.length >= MAX_GUESSES) {
           setGameStatus('lost');
@@ -197,7 +215,7 @@ export default function GameScreen({ wordLength, onGoHome }) {
           </View>
         </View>
 
-        <Mascot state={mascotState} lostWord={gameStatus === 'lost' ? targetWord : ''} />
+        <Mascot mascot={mascot} state={mascotState} lostWord={gameStatus === 'lost' ? targetWord : ''} />
 
         {/* Letter grid */}
         <View style={styles.grid}>
