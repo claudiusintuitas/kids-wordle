@@ -5,43 +5,51 @@ import {
 } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 
-import Mascot    from '../components/Mascot';
-import LetterTile from '../components/LetterTile';
-import Keyboard  from '../components/Keyboard';
-import Confetti  from '../components/Confetti';
-import { getRandomWord }                     from '../data/wordlists';
+import Mascot           from '../components/Mascot';
+import LetterTile        from '../components/LetterTile';
+import Keyboard          from '../components/Keyboard';
+import Confetti          from '../components/Confetti';
+import PopupCharacter    from '../components/PopupCharacter';
+import { getRandomWord } from '../data/wordlists';
 import { evaluateGuess, isWin, buildLetterStatuses } from '../utils/gameLogic';
+import {
+  playBubble, playMeow, playSurprise, playFanfare, playWrong, playCorrect,
+} from '../utils/sounds';
 
 const MAX_GUESSES    = 6;
-const REVEAL_DELAY   = 340;  // ms between each tile reveal
-const REVEAL_ANIM_MS = 400;  // duration of one tile's squish+unsquish
+const REVEAL_DELAY   = 340;
+const REVEAL_ANIM_MS = 400;
 
 const { width: W, height: H } = Dimensions.get('window');
 
 export default function GameScreen({ wordLength, onGoHome }) {
   const [targetWord]      = useState(() => getRandomWord(wordLength));
-  const [guesses, setGuesses]         = useState([]);   // [{letters, evaluations}]
+  const [guesses, setGuesses]         = useState([]);
   const [currentLetters, setCurrentLetters] = useState([]);
-  const [gameStatus, setGameStatus]   = useState('playing'); // 'playing'|'won'|'lost'
+  const [gameStatus, setGameStatus]   = useState('playing');
   const [mascotState, setMascotState] = useState('idle');
   const [letterStatuses, setLetterStatuses] = useState({});
   const [revealingRow, setRevealingRow]     = useState(-1);
   const [isLocked, setIsLocked]       = useState(false);
   const [showConfetti, setShowConfetti]     = useState(false);
+  const [popup, setPopup] = useState({ visible: false, type: 'surprise', key: 0 });
 
-  // One shake Animated.Value per row
   const rowShakeAnims = useRef(
     Array.from({ length: MAX_GUESSES }, () => new Animated.Value(0))
   ).current;
 
   const currentRow = guesses.length;
 
-  // Calculate tile size that fits both width and available vertical space
-  const tileMargin   = 4;   // LetterTile style margin
+  const tileMargin   = 4;
   const maxFromWidth = Math.floor((W - 32) / wordLength) - tileMargin * 2;
   const approxGridH  = H * 0.38;
   const maxFromHeight = Math.floor((approxGridH - (MAX_GUESSES - 1) * tileMargin * 2) / MAX_GUESSES);
   const tileSize = Math.min(wordLength === 3 ? 68 : 60, maxFromWidth, maxFromHeight);
+
+  const showPopup = useCallback((type, count = 3) => {
+    setPopup(p => ({ visible: true, type, count, key: p.key + 1 }));
+    setTimeout(() => setPopup(p => ({ ...p, visible: false })), 1200);
+  }, []);
 
   const shakeCurrentRow = useCallback(() => {
     const shake = rowShakeAnims[currentRow];
@@ -65,6 +73,7 @@ export default function GameScreen({ wordLength, onGoHome }) {
     if (key === 'OK') {
       if (currentLetters.length < wordLength) {
         shakeCurrentRow();
+        playWrong();
         setMascotState('wrong');
         setTimeout(() => setMascotState('idle'), 800);
         return;
@@ -75,29 +84,44 @@ export default function GameScreen({ wordLength, onGoHome }) {
       const newGuess   = { letters: [...currentLetters], evaluations: evaluation };
       const newGuesses = [...guesses, newGuess];
 
-      // Lock input, trigger reveal animation
       setIsLocked(true);
       setCurrentLetters([]);
       setGuesses(newGuesses);
       setRevealingRow(currentRow);
 
-      // After all tiles finish revealing, update game state
       const totalMs = (wordLength - 1) * REVEAL_DELAY + REVEAL_ANIM_MS + 120;
       setTimeout(() => {
         setLetterStatuses(buildLetterStatuses(newGuesses));
         setRevealingRow(-1);
 
+        const hasCorrect  = evaluation.some(e => e === 'correct');
+        const hasPresent  = evaluation.some(e => e === 'present');
+
         if (isWin(evaluation)) {
           setGameStatus('won');
           setMascotState('win');
           setShowConfetti(true);
-          setIsLocked(true);   // game over — keep locked
+          playFanfare();
+          showPopup('win', 5);
+          // Meow after a short delay for extra delight
+          setTimeout(() => playMeow(), 600);
+          setIsLocked(true);
         } else if (newGuesses.length >= MAX_GUESSES) {
           setGameStatus('lost');
           setMascotState('lose');
+          playWrong();
           setIsLocked(true);
         } else {
-          // Encourage the player
+          if (hasCorrect) {
+            playCorrect();
+            showPopup('correct', 3);
+          } else if (hasPresent) {
+            playSurprise();
+            showPopup('surprise', 2);
+          } else {
+            playWrong();
+            showPopup('wrong', 2);
+          }
           setMascotState('happy');
           setTimeout(() => setMascotState('idle'), 900);
           setIsLocked(false);
@@ -106,19 +130,18 @@ export default function GameScreen({ wordLength, onGoHome }) {
       return;
     }
 
-    // Regular letter key
+    // Letter key — bubble pop + bounce
     if (currentLetters.length < wordLength) {
+      playBubble();
       setCurrentLetters((prev) => [...prev, key.toLowerCase()]);
     }
   }, [
     isLocked, gameStatus, currentLetters, guesses,
-    currentRow, wordLength, targetWord, shakeCurrentRow,
+    currentRow, wordLength, targetWord, shakeCurrentRow, showPopup,
   ]);
 
-  // Build per-tile props for a given row
   const buildRowTiles = (rowIndex) => {
     if (rowIndex < guesses.length) {
-      // Completed row
       return guesses[rowIndex].letters.map((letter, j) => ({
         letter,
         status:       guesses[rowIndex].evaluations[j],
@@ -127,7 +150,6 @@ export default function GameScreen({ wordLength, onGoHome }) {
       }));
     }
     if (rowIndex === currentRow && gameStatus === 'playing') {
-      // Active row being typed
       return Array.from({ length: wordLength }, (_, j) => ({
         letter:      currentLetters[j] || '',
         status:      currentLetters[j] ? 'filled' : 'empty',
@@ -135,7 +157,6 @@ export default function GameScreen({ wordLength, onGoHome }) {
         revealDelay:  0,
       }));
     }
-    // Future / empty row
     return Array.from({ length: wordLength }, () => ({
       letter: '', status: 'empty', shouldReveal: false, revealDelay: 0,
     }));
@@ -150,6 +171,7 @@ export default function GameScreen({ wordLength, onGoHome }) {
     >
       <SafeAreaView style={styles.safe}>
         <Confetti active={showConfetti} />
+        <PopupCharacter key={popup.key} type={popup.type} visible={popup.visible} count={popup.count} />
 
         {/* Header */}
         <View style={styles.header}>
@@ -168,17 +190,12 @@ export default function GameScreen({ wordLength, onGoHome }) {
           </View>
         </View>
 
-        {/* Mascot + speech bubble */}
-        <Mascot
-          state={mascotState}
-          lostWord={gameStatus === 'lost' ? targetWord : ''}
-        />
+        <Mascot state={mascotState} lostWord={gameStatus === 'lost' ? targetWord : ''} />
 
-        {/* Letter grid — 6 rows */}
+        {/* Letter grid */}
         <View style={styles.grid}>
           {Array.from({ length: MAX_GUESSES }, (_, rowIndex) => {
             const tiles = buildRowTiles(rowIndex);
-            const isActiveRow = rowIndex === currentRow && gameStatus === 'playing';
             return (
               <Animated.View
                 key={rowIndex}
@@ -205,7 +222,6 @@ export default function GameScreen({ wordLength, onGoHome }) {
           })}
         </View>
 
-        {/* Result banner (shown after game ends) */}
         {gameStatus !== 'playing' && (
           <ResultBanner
             won={gameStatus === 'won'}
@@ -215,12 +231,8 @@ export default function GameScreen({ wordLength, onGoHome }) {
           />
         )}
 
-        {/* Keyboard (hidden after game ends) */}
         {gameStatus === 'playing' && (
-          <Keyboard
-            onKey={handleKey}
-            letterStatuses={letterStatuses}
-          />
+          <Keyboard onKey={handleKey} letterStatuses={letterStatuses} />
         )}
       </SafeAreaView>
     </LinearGradient>
@@ -240,35 +252,21 @@ function ResultBanner({ won, word, guessCount, onPlayAgain }) {
 
   return (
     <Animated.View
-      style={[
-        styles.resultCard,
-        { transform: [{ scale: scaleAnim }], opacity: opacAnim },
-      ]}
+      style={[styles.resultCard, { transform: [{ scale: scaleAnim }], opacity: opacAnim }]}
     >
-      <Text style={styles.resultEmoji}>
-        {won ? '🏆🌟🏆' : '😿💙😿'}
-      </Text>
+      <Text style={styles.resultEmoji}>{won ? '🏆🌟🏆' : '😿💙😿'}</Text>
       <Text style={styles.resultHeadline}>
-        {won ? 'You got it! Amazing!' : `The word was:`}
+        {won ? 'You got it! Amazing!' : 'The word was:'}
       </Text>
-      {!won && (
-        <Text style={styles.resultWord}>{word.toUpperCase()}</Text>
-      )}
-      {won && (
-        <Text style={styles.resultGuesses}>
-          in {guessCount} {guessCount === 1 ? 'guess' : 'guesses'}! 🎉
-        </Text>
-      )}
+      {!won && <Text style={styles.resultWord}>{word.toUpperCase()}</Text>}
+      {won && <Text style={styles.resultGuesses}>in {guessCount} {guessCount === 1 ? 'guess' : 'guesses'}! 🎉</Text>}
       <TouchableOpacity onPress={onPlayAgain} activeOpacity={0.85}>
         <LinearGradient
           colors={won ? ['#56CF6E', '#27AE60'] : ['#A18CD1', '#FBC2EB']}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 0 }}
+          start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }}
           style={styles.playAgainBtn}
         >
-          <Text style={styles.playAgainText}>
-            {won ? '🌟 Play Again!' : '💪 Try Again!'}
-          </Text>
+          <Text style={styles.playAgainText}>{won ? '🌟 Play Again!' : '💪 Try Again!'}</Text>
         </LinearGradient>
       </TouchableOpacity>
     </Animated.View>
@@ -277,87 +275,42 @@ function ResultBanner({ won, word, guessCount, onPlayAgain }) {
 
 const styles = StyleSheet.create({
   gradient: { flex: 1 },
-  safe: {
-    flex: 1,
-    alignItems: 'center',
-  },
-
+  safe: { flex: 1, alignItems: 'center' },
   header: {
-    width: '100%',
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 10,
-    paddingTop: 6,
-    paddingBottom: 4,
+    width: '100%', flexDirection: 'row', alignItems: 'center',
+    paddingHorizontal: 10, paddingTop: 6, paddingBottom: 4,
   },
-  homeBtn: {
-    padding: 8,
-    borderRadius: 12,
-    backgroundColor: 'rgba(255,255,255,0.6)',
-  },
+  homeBtn: { padding: 8, borderRadius: 12, backgroundColor: 'rgba(255,255,255,0.6)' },
   homeBtnText: { fontSize: 20 },
   headerCenter: { flex: 1, alignItems: 'center' },
-  headerTitle: {
-    fontSize: 18,
-    fontWeight: '900',
-    color: '#4A2E6B',
-  },
+  headerTitle: { fontSize: 18, fontWeight: '900', color: '#4A2E6B' },
   headerRight: { width: 44, alignItems: 'flex-end' },
   guessCount: {
-    fontSize: 14,
-    fontWeight: '700',
-    color: '#4A2E6B',
+    fontSize: 14, fontWeight: '700', color: '#4A2E6B',
     backgroundColor: 'rgba(255,255,255,0.6)',
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 10,
+    paddingHorizontal: 8, paddingVertical: 4, borderRadius: 10,
   },
-
-  grid: {
-    alignItems: 'center',
-    marginVertical: 4,
-  },
-  row: {
-    flexDirection: 'row',
-  },
-
+  grid: { alignItems: 'center', marginVertical: 4 },
+  row: { flexDirection: 'row' },
   resultCard: {
-    width: '88%',
-    backgroundColor: 'rgba(255,255,255,0.94)',
-    borderRadius: 24,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
-    alignItems: 'center',
-    marginVertical: 8,
-    shadowColor: '#4A2E6B',
-    shadowOffset: { width: 0, height: 6 },
-    shadowOpacity: 0.18,
-    shadowRadius: 12,
-    elevation: 8,
-    borderWidth: 2,
-    borderColor: '#E8D5FF',
+    width: '88%', backgroundColor: 'rgba(255,255,255,0.94)',
+    borderRadius: 24, paddingVertical: 20, paddingHorizontal: 24,
+    alignItems: 'center', marginVertical: 8,
+    shadowColor: '#4A2E6B', shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.18, shadowRadius: 12, elevation: 8,
+    borderWidth: 2, borderColor: '#E8D5FF',
   },
   resultEmoji:    { fontSize: 44, marginBottom: 8 },
   resultHeadline: { fontSize: 22, fontWeight: '900', color: '#4A2E6B', textAlign: 'center', marginBottom: 4 },
   resultWord:     { fontSize: 36, fontWeight: '900', color: '#56CF6E', marginBottom: 12, letterSpacing: 6 },
   resultGuesses:  { fontSize: 16, fontWeight: '700', color: '#A18CD1', marginBottom: 12 },
   playAgainBtn: {
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingHorizontal: 32,
-    marginTop: 4,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.15,
-    shadowRadius: 6,
-    elevation: 4,
+    borderRadius: 18, paddingVertical: 14, paddingHorizontal: 32, marginTop: 4,
+    shadowColor: '#000', shadowOffset: { width: 0, height: 3 },
+    shadowOpacity: 0.15, shadowRadius: 6, elevation: 4,
   },
   playAgainText: {
-    fontSize: 22,
-    fontWeight: '900',
-    color: '#FFFFFF',
-    textShadowColor: 'rgba(0,0,0,0.2)',
-    textShadowOffset: { width: 0, height: 1 },
-    textShadowRadius: 3,
+    fontSize: 22, fontWeight: '900', color: '#FFFFFF',
+    textShadowColor: 'rgba(0,0,0,0.2)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 3,
   },
 });

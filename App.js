@@ -1,12 +1,17 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { StatusBar } from 'expo-status-bar';
 import HomeScreen from './src/screens/HomeScreen';
 import GameScreen from './src/screens/GameScreen';
+import { loadSounds } from './src/utils/sounds';
 
 export default function App() {
   const [screen, setScreen]         = useState('home');
   const [wordLength, setWordLength]  = useState(3);
-  const [gameKey, setGameKey]        = useState(0);   // incremented each new game to force remount
+  const [gameKey, setGameKey]        = useState(0);
+
+  useEffect(() => {
+    loadSounds().catch(() => {}); // load all sounds on startup; ignore errors
+  }, []);
 
   const handleStart = useCallback((length) => {
     setWordLength(length);
