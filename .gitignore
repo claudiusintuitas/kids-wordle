@@ -1,0 +1,26 @@
+node_modules/
+.expo/
+dist/
+web-build/
+*.jks
+*.p8
+*.p12
+*.key
+*.keystore
+*.mobileprovision
+*.orig.*
+.env
+.env.local
+
+# Android
+android/app/build/
+android/.gradle/
+android/local.properties
+android/app/src/main/assets/index.android.bundle
+
+# iOS
+ios/Pods/
+ios/build/
+
+# macOS
+.DS_Store
