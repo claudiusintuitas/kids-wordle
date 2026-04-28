@@ -152,8 +152,8 @@ export default function Keyboard({ onKey, letterStatuses = {} }) {
   const availableW        = W - horizontalPadding * 2 - gap * (widestRowKeys - 1);
   const keyWidth          = Math.floor(availableW / widestRowSlots);
 
-  // 5 rows means each row gets a fair chunk of vertical space — let it fill ~52% of screen.
-  const targetKeyboardH = Math.min(H * 0.52, 700);
+  // Slightly smaller keyboard so the guess grid has more room.
+  const targetKeyboardH = Math.min(H * 0.46, 600);
   const verticalGap     = 5;
   const rowCount        = 5;
   const keyHeight       = Math.min(

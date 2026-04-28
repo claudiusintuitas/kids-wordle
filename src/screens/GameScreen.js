@@ -31,7 +31,7 @@ const MASCOT_SOUND = {
   penguin:  playOwl,
 };
 
-const MAX_GUESSES    = 8;
+const MAX_GUESSES    = 7;
 const REVEAL_DELAY   = 340;
 const REVEAL_ANIM_MS = 400;
 
@@ -57,12 +57,12 @@ export default function GameScreen({ wordLength, onGoHome }) {
 
   const currentRow = guesses.length;
 
-  const tileMargin   = 3;
+  const tileMargin   = 4;
   const maxFromWidth = Math.floor((W - 32) / wordLength) - tileMargin * 2;
-  // Keyboard now takes ~52% of screen — give grid the rest minus header/mascot.
-  const approxGridH  = H * 0.32;
+  // Keyboard ~46% of screen, grid gets ~40%.
+  const approxGridH  = H * 0.40;
   const maxFromHeight = Math.floor((approxGridH - MAX_GUESSES * tileMargin * 2) / MAX_GUESSES);
-  const tileSize = Math.min(wordLength === 3 ? 60 : 54, maxFromWidth, maxFromHeight);
+  const tileSize = Math.min(wordLength === 3 ? 90 : 80, maxFromWidth, maxFromHeight);
 
   const showPopup = useCallback((type, count = 3) => {
     setPopup(p => ({ visible: true, type, count, key: p.key + 1 }));
