@@ -3,13 +3,13 @@ import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions } from '
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
+// Alphabetical layout — 9 / 9 / 8+specials. The widest row has 9 letter keys.
 const ROWS = [
-  ['Q','W','E','R','T','Y','U','I','O','P'],
-  ['A','S','D','F','G','H','J','K','L'],
-  ['DEL','Z','X','C','V','B','N','M','OK'],
+  ['A','B','C','D','E','F','G','H','I'],
+  ['J','K','L','M','N','O','P','Q','R'],
+  ['DEL','S','T','U','V','W','X','Y','Z','OK'],
 ];
 
-// Rainbow key colours cycling per letter key
 const RAINBOW = [
   '#FF6B9D', '#FF8E53', '#FFCC00', '#6BCB77',
   '#4FC3F7', '#A78BFA', '#F472B6', '#34D399',
@@ -24,11 +24,11 @@ const STATUS_BG = {
 
 let colourIndex = 0;
 const letterColours = {};
-'QWERTYUIOPASDFGHJKLZXCVBNM'.split('').forEach((c) => {
+'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((c) => {
   letterColours[c] = RAINBOW[colourIndex++ % RAINBOW.length];
 });
 
-function KeyButton({ label, onPress, letterStatuses, keyWidth }) {
+function KeyButton({ label, onPress, letterStatuses, keyWidth, keyHeight }) {
   const scaleAnim = useRef(new Animated.Value(1)).current;
 
   const handlePress = () => {
@@ -50,7 +50,7 @@ function KeyButton({ label, onPress, letterStatuses, keyWidth }) {
     bgColor = letterColours[label] || '#CCC';
   }
 
-  const keyW = isSpecial ? keyWidth * 1.6 : keyWidth;
+  const keyW = isSpecial ? keyWidth * 1.5 : keyWidth;
 
   return (
     <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
@@ -61,12 +61,18 @@ function KeyButton({ label, onPress, letterStatuses, keyWidth }) {
           styles.key,
           {
             width:           keyW,
+            height:          keyHeight,
             backgroundColor: bgColor,
             opacity: status === 'absent' ? 0.65 : 1,
           },
         ]}
       >
-        <Text style={[styles.keyText, isSpecial && styles.specialText]}>
+        <Text
+          style={[
+            styles.keyText,
+            { fontSize: isSpecial ? Math.round(keyHeight * 0.32) : Math.round(keyHeight * 0.45) },
+          ]}
+        >
           {label === 'DEL' ? '⌫' : label}
         </Text>
       </TouchableOpacity>
@@ -75,13 +81,31 @@ function KeyButton({ label, onPress, letterStatuses, keyWidth }) {
 }
 
 export default function Keyboard({ onKey, letterStatuses = {} }) {
-  // 10 keys in widest row + margins
-  const keyWidth = Math.floor((SCREEN_WIDTH - 24) / 10) - 4;
+  const { width: W, height: H } = Dimensions.get('window');
+
+  // Bottom row is widest: 8 letter keys + 2 specials (each 1.5x). Effective slots = 8 + 3 = 11.
+  // The middle and top rows each have 9 letter keys (smaller — 9 < 11 so they're guaranteed to fit).
+  const horizontalPadding = 8;
+  const gap               = 4;
+  const widestRowSlots    = 11; // 8 letters + 1.5 + 1.5
+  const widestRowKeys     = 10; // 8 letters + DEL + OK = 10 actual keys, 9 gaps between them
+  const availableW        = W - horizontalPadding * 2 - gap * (widestRowKeys - 1);
+  const keyWidth          = Math.floor(availableW / widestRowSlots);
+
+  // Use available vertical space — aim for ~38% of screen for keyboard, capped per-key
+  const targetKeyboardH = Math.min(H * 0.42, 360);
+  const verticalGap     = 6;
+  const rowCount        = 3;
+  const keyHeight       = Math.min(
+    Math.floor((targetKeyboardH - verticalGap * (rowCount + 1)) / rowCount),
+    Math.round(keyWidth * 1.3),  // never taller than 1.3x width — keeps proportions nice
+    72                            // hard cap so it doesn't get silly on tablets
+  );
 
   return (
     <View style={styles.container}>
       {ROWS.map((row, ri) => (
-        <View key={ri} style={styles.row}>
+        <View key={ri} style={[styles.row, { gap, marginVertical: verticalGap / 2 }]}>
           {row.map((label) => (
             <KeyButton
               key={label}
@@ -89,6 +113,7 @@ export default function Keyboard({ onKey, letterStatuses = {} }) {
               onPress={onKey}
               letterStatuses={letterStatuses}
               keyWidth={keyWidth}
+              keyHeight={keyHeight}
             />
           ))}
         </View>
@@ -100,18 +125,15 @@ export default function Keyboard({ onKey, letterStatuses = {} }) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    paddingHorizontal: 4,
+    paddingHorizontal: 8,
     paddingBottom: 6,
   },
   row: {
     flexDirection: 'row',
     justifyContent: 'center',
-    marginVertical: 3,
-    gap: 4,
   },
   key: {
-    height: 46,
-    borderRadius: 10,
+    borderRadius: 12,
     justifyContent: 'center',
     alignItems: 'center',
     shadowColor: '#000',
@@ -121,15 +143,11 @@ const styles = StyleSheet.create({
     elevation: 4,
   },
   keyText: {
-    fontSize: 15,
     fontWeight: '800',
     color: '#FFFFFF',
     includeFontPadding: false,
     textShadowColor: 'rgba(0,0,0,0.25)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
-  },
-  specialText: {
-    fontSize: 13,
   },
 });
