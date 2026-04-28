@@ -32,8 +32,18 @@ export async function loadSounds() {
     };
     await Promise.all(
       Object.entries(files).map(async ([key, src]) => {
-        const { sound } = await Audio.Sound.createAsync(src, { shouldPlay: false });
+        const { sound } = await Audio.Sound.createAsync(src, { shouldPlay: false, volume: 1.0 });
         cache[key] = sound;
+        // Warm up the audio pipeline: Android's AudioTrack needs a first playback
+        // to initialize buffers. Without this, the very first user-triggered tap
+        // is silent. We play once at volume 0, stop, restore volume.
+        try {
+          await sound.setVolumeAsync(0);
+          await sound.playAsync();
+          await sound.stopAsync();
+          await sound.setPositionAsync(0);
+          await sound.setVolumeAsync(1.0);
+        } catch (_) {}
       })
     );
   } catch (_) {}
