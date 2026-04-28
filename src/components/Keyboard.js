@@ -4,11 +4,14 @@ import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Alphabetical layout — 9 / 9 / 8+specials
+// Alphabetical layout — 6 letters per row makes each bubble much bigger.
+// 5 rows total: 4 rows of 6 + 1 row of 2 + DEL + OK.
 const ROWS = [
-  ['A','B','C','D','E','F','G','H','I'],
-  ['J','K','L','M','N','O','P','Q','R'],
-  ['DEL','S','T','U','V','W','X','Y','Z','OK'],
+  ['A','B','C','D','E','F'],
+  ['G','H','I','J','K','L'],
+  ['M','N','O','P','Q','R'],
+  ['S','T','U','V','W','X'],
+  ['DEL','Y','Z','OK'],
 ];
 
 // Bubble colours — each letter gets a candy-bright hue.
@@ -140,21 +143,23 @@ function BubbleKey({ label, onPress, letterStatuses, keyWidth, keyHeight }) {
 export default function Keyboard({ onKey, letterStatuses = {} }) {
   const { width: W, height: H } = Dimensions.get('window');
 
-  // Bottom row: 8 letters + 2 special pills (each 1.5x). Effective slots = 11.
+  // Widest letter row has 6 keys. Bottom row is 2 letters + 2 special pills (1.5x each)
+  // = 2 + 3 = 5 slots, narrower than 6 — letters dominate the width.
   const horizontalPadding = 8;
   const gap               = 4;
-  const widestRowSlots    = 11;
-  const widestRowKeys     = 10;
+  const widestRowSlots    = 6;
+  const widestRowKeys     = 6;
   const availableW        = W - horizontalPadding * 2 - gap * (widestRowKeys - 1);
   const keyWidth          = Math.floor(availableW / widestRowSlots);
 
-  const targetKeyboardH = Math.min(H * 0.42, 360);
-  const verticalGap     = 6;
-  const rowCount        = 3;
+  // 5 rows means each row gets a fair chunk of vertical space — let it fill ~52% of screen.
+  const targetKeyboardH = Math.min(H * 0.52, 700);
+  const verticalGap     = 5;
+  const rowCount        = 5;
   const keyHeight       = Math.min(
     Math.floor((targetKeyboardH - verticalGap * (rowCount + 1)) / rowCount),
     keyWidth,           // never taller than the width — keeps letter keys perfectly circular
-    72,
+    220,
   );
 
   return (

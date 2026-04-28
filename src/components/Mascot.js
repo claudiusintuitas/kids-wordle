@@ -254,7 +254,7 @@ const styles = StyleSheet.create({
     marginTop: -1,
   },
   emoji: {
-    fontSize: 70,
-    marginTop: 4,
+    fontSize: 56,
+    marginTop: 2,
   },
 });

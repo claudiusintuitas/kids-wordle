@@ -57,12 +57,12 @@ export default function GameScreen({ wordLength, onGoHome }) {
 
   const currentRow = guesses.length;
 
-  const tileMargin   = 4;
+  const tileMargin   = 3;
   const maxFromWidth = Math.floor((W - 32) / wordLength) - tileMargin * 2;
-  // 8 rows now — give the grid more vertical real estate
-  const approxGridH  = H * 0.46;
+  // Keyboard now takes ~52% of screen — give grid the rest minus header/mascot.
+  const approxGridH  = H * 0.32;
   const maxFromHeight = Math.floor((approxGridH - MAX_GUESSES * tileMargin * 2) / MAX_GUESSES);
-  const tileSize = Math.min(wordLength === 3 ? 84 : 76, maxFromWidth, maxFromHeight);
+  const tileSize = Math.min(wordLength === 3 ? 60 : 54, maxFromWidth, maxFromHeight);
 
   const showPopup = useCallback((type, count = 3) => {
     setPopup(p => ({ visible: true, type, count, key: p.key + 1 }));
