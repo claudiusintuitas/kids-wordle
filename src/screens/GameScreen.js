@@ -13,10 +13,10 @@ import PopupCharacter    from '../components/PopupCharacter';
 import { getRandomWord } from '../data/wordlists';
 import { evaluateGuess, isWin, buildLetterStatuses } from '../utils/gameLogic';
 import {
-  playBubble, playMeow, playSurprise, playFanfare, playWrong, playCorrect,
+  playBubble, playMeow, playSurprise, playFanfare, playWrong, playCorrect, playCharm, playCritter,
 } from '../utils/sounds';
 
-const MAX_GUESSES    = 6;
+const MAX_GUESSES    = 8;
 const REVEAL_DELAY   = 340;
 const REVEAL_ANIM_MS = 400;
 
@@ -42,9 +42,10 @@ export default function GameScreen({ wordLength, onGoHome }) {
 
   const tileMargin   = 4;
   const maxFromWidth = Math.floor((W - 32) / wordLength) - tileMargin * 2;
-  const approxGridH  = H * 0.38;
-  const maxFromHeight = Math.floor((approxGridH - (MAX_GUESSES - 1) * tileMargin * 2) / MAX_GUESSES);
-  const tileSize = Math.min(wordLength === 3 ? 68 : 60, maxFromWidth, maxFromHeight);
+  // 8 rows now — give the grid more vertical real estate
+  const approxGridH  = H * 0.46;
+  const maxFromHeight = Math.floor((approxGridH - MAX_GUESSES * tileMargin * 2) / MAX_GUESSES);
+  const tileSize = Math.min(wordLength === 3 ? 84 : 76, maxFromWidth, maxFromHeight);
 
   const showPopup = useCallback((type, count = 3) => {
     setPopup(p => ({ visible: true, type, count, key: p.key + 1 }));
@@ -84,6 +85,9 @@ export default function GameScreen({ wordLength, onGoHome }) {
       const newGuess   = { letters: [...currentLetters], evaluations: evaluation };
       const newGuesses = [...guesses, newGuess];
 
+      // Charm sound the moment they submit — before the row reveal animation
+      playCharm();
+
       setIsLocked(true);
       setCurrentLetters([]);
       setGuesses(newGuesses);
@@ -114,9 +118,12 @@ export default function GameScreen({ wordLength, onGoHome }) {
         } else {
           if (hasCorrect) {
             playCorrect();
+            // Random critter sound on top — cat, monkey, owl, elephant, dino, etc.
+            setTimeout(() => playCritter(), 250);
             showPopup('correct', 3);
           } else if (hasPresent) {
             playSurprise();
+            setTimeout(() => playCritter(), 250);
             showPopup('surprise', 2);
           } else {
             playWrong();

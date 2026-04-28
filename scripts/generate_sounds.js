@@ -39,17 +39,22 @@ function envelope(t, attack, decay, sustain, release, total) {
   return sustain * (1 - (t - (total - release)) / release);
 }
 
-// 1. Bubble pop — quick downward freq sweep, 90ms
+// 1. Bubble pop — VERY gentle. Soft tippy plink, ~35ms. Quiet so rapid typing
+//    doesn't become annoying. Two slightly detuned sines for warmth.
 function bubblePop() {
-  const dur = 0.09;
+  const dur = 0.035;
   const n = Math.floor(dur * SAMPLE_RATE);
   const samples = new Float32Array(n);
   for (let i = 0; i < n; i++) {
     const t = i / SAMPLE_RATE;
     const frac = t / dur;
-    const freq = 900 * Math.pow(0.25, frac); // 900 → 225 Hz sweep
-    const env = Math.exp(-frac * 5) * (1 - frac);
-    samples[i] = sine(t * (1 - frac * 0.5), freq) * env * 0.7;
+    // Subtle high-pitched plink — narrow downward sweep
+    const freq = 1700 * Math.pow(0.7, frac); // 1700 → ~1200 Hz
+    // Sin-shaped envelope — no clicks at start or end
+    const env = Math.sin(Math.PI * frac);
+    // Layer two slightly detuned sines for a softer, less synthetic feel
+    const s = sine(t, freq) * 0.7 + sine(t, freq * 1.005) * 0.3;
+    samples[i] = s * env * 0.16; // very quiet
   }
   return makeWav(samples);
 }
@@ -144,14 +149,80 @@ function correctLetter() {
   return makeWav(samples);
 }
 
-// Write all files
+// 7. Submit charm — sparkly twinkle when player presses OK on a complete word.
+//    Two-note ascending chime + high glassy harmonic. ~280ms.
+function submitCharm() {
+  const dur = 0.28;
+  const n = Math.floor(dur * SAMPLE_RATE);
+  const samples = new Float32Array(n);
+  // E5 then A5 — bright, hopeful, kid-friendly
+  const notes = [
+    { freq: 659.25, start: 0.00, len: 0.18 },
+    { freq: 880.00, start: 0.06, len: 0.22 },
+  ];
+  for (const note of notes) {
+    const startN = Math.floor(note.start * SAMPLE_RATE);
+    const noteN  = Math.floor(note.len  * SAMPLE_RATE);
+    for (let i = 0; i < noteN && startN + i < n; i++) {
+      const t = i / SAMPLE_RATE;
+      // Soft attack, smooth exponential decay — bell-like
+      const env = Math.min(1, t * 30) * Math.exp(-t * 6);
+      const s   = sine(t, note.freq) * 0.5
+                + sine(t, note.freq * 2) * 0.22   // octave
+                + sine(t, note.freq * 3) * 0.10;  // 12th — adds shimmer
+      samples[startN + i] += s * env * 0.55;
+    }
+  }
+  // Light high-pitched sparkle on top
+  for (let i = 0; i < n; i++) {
+    const t = i / SAMPLE_RATE;
+    const frac = t / dur;
+    if (frac > 0.15 && frac < 0.7) {
+      const env = Math.sin(Math.PI * (frac - 0.15) / 0.55) * 0.12;
+      samples[i] += sine(t, 2200 + 400 * Math.sin(2 * Math.PI * 8 * t)) * env;
+    }
+  }
+  // Normalize gently
+  const max = samples.reduce((m, v) => Math.max(m, Math.abs(v)), 0);
+  if (max > 0.95) for (let i = 0; i < n; i++) samples[i] *= 0.95 / max;
+  return makeWav(samples);
+}
+
+// 8. Dinosaur roar — low rumble + growl + decay. Extinct animals have no recordings,
+//    so we synthesize a kid-friendly roar (not too scary). ~700ms.
+function dinoRoar() {
+  const dur = 0.7;
+  const n = Math.floor(dur * SAMPLE_RATE);
+  const samples = new Float32Array(n);
+  for (let i = 0; i < n; i++) {
+    const t = i / SAMPLE_RATE;
+    const frac = t / dur;
+    // Pitch sweep down: 180 Hz → 80 Hz
+    const freq = 180 - 100 * frac;
+    // Heavy harmonic richness with growl modulation
+    const growl = 1 + 0.4 * Math.sin(2 * Math.PI * 22 * t); // 22 Hz growl
+    const phase = 2 * Math.PI * freq * t;
+    const s = Math.sin(phase * growl) * 0.5
+            + Math.sin(phase * 2 * growl) * 0.25
+            + Math.sin(phase * 3) * 0.15
+            // Add some "breath" noise on top
+            + (Math.random() - 0.5) * 0.15;
+    // Envelope: quick attack, sustained, slow release
+    const env = frac < 0.05 ? frac / 0.05 : (frac < 0.7 ? 1 : (1 - (frac - 0.7) / 0.3));
+    samples[i] = s * env * 0.7;
+  }
+  return makeWav(samples);
+}
+
+// Write all files (synth-only sounds — real animal recordings come from fetch_real_sounds.js)
 const sounds = {
   'bubble_pop.wav': bubblePop(),
-  'cat_meow.wav': catMeow(),
   'surprise_pop.wav': surprisePop(),
   'win_fanfare.wav': winFanfare(),
   'wrong_guess.wav': wrongGuess(),
   'correct_letter.wav': correctLetter(),
+  'submit_charm.wav': submitCharm(),
+  'dinosaur.wav': dinoRoar(),
 };
 
 for (const [name, buf] of Object.entries(sounds)) {

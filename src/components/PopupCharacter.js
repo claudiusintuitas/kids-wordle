@@ -3,10 +3,10 @@ import { Animated, StyleSheet, Text, View } from 'react-native';
 
 // Characters shown for different events
 const CHARACTERS = {
-  correct:  ['😸', '🐱', '🐾', '✨'],
-  wrong:    ['🙈', '🐒', '😅', '🦆'],
-  win:      ['🦄', '🌈', '⭐', '🎉', '🥳'],
-  surprise: ['🐸', '🦊', '🐼', '🐨', '🦁'],
+  correct:  ['😸', '🐱', '🐾', '✨', '🦉', '🐘'],
+  wrong:    ['🙈', '🐒', '😅', '🦆', '🦖'],
+  win:      ['🦄', '🌈', '⭐', '🎉', '🥳', '🦕'],
+  surprise: ['🐸', '🦊', '🐼', '🐨', '🦁', '🐵', '🦖', '🦕', '🐘', '🦉'],
 };
 
 function SinglePop({ emoji, delay, x, style }) {

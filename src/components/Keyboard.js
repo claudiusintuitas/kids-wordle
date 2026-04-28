@@ -1,80 +1,137 @@
 import React, { useRef } from 'react';
 import { View, Text, TouchableOpacity, Animated, StyleSheet, Dimensions } from 'react-native';
+import { LinearGradient } from 'expo-linear-gradient';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
-// Alphabetical layout — 9 / 9 / 8+specials. The widest row has 9 letter keys.
+// Alphabetical layout — 9 / 9 / 8+specials
 const ROWS = [
   ['A','B','C','D','E','F','G','H','I'],
   ['J','K','L','M','N','O','P','Q','R'],
   ['DEL','S','T','U','V','W','X','Y','Z','OK'],
 ];
 
-const RAINBOW = [
-  '#FF6B9D', '#FF8E53', '#FFCC00', '#6BCB77',
-  '#4FC3F7', '#A78BFA', '#F472B6', '#34D399',
-  '#60A5FA', '#FCA5A5',
+// Bubble colours — each letter gets a candy-bright hue.
+// We pick a [base, light] pair so the bubble has a glossy gradient.
+const BUBBLE_COLOURS = [
+  ['#FF6B9D', '#FFB3CD'], // pink
+  ['#FF8E53', '#FFC8A6'], // peach
+  ['#FFCC00', '#FFE680'], // yellow
+  ['#6BCB77', '#B5E3BB'], // mint
+  ['#4FC3F7', '#A6E1FA'], // sky
+  ['#A78BFA', '#D4C5FB'], // lavender
+  ['#F472B6', '#FAB6D9'], // rose
+  ['#34D399', '#9AE9C9'], // teal
+  ['#60A5FA', '#B0CFFC'], // cornflower
+  ['#FCA5A5', '#FFD1D1'], // coral
 ];
 
-const STATUS_BG = {
-  correct: '#56CF6E',
-  present: '#F7C948',
-  absent:  '#A0A0A0',
+const STATUS_COLOURS = {
+  correct: ['#56CF6E', '#A8E5B5'],
+  present: ['#F7C948', '#FBE0A4'],
+  absent:  ['#A0A0A0', '#D0D0D0'],
 };
 
 let colourIndex = 0;
 const letterColours = {};
 'ABCDEFGHIJKLMNOPQRSTUVWXYZ'.split('').forEach((c) => {
-  letterColours[c] = RAINBOW[colourIndex++ % RAINBOW.length];
+  letterColours[c] = BUBBLE_COLOURS[colourIndex++ % BUBBLE_COLOURS.length];
 });
 
-function KeyButton({ label, onPress, letterStatuses, keyWidth, keyHeight }) {
-  const scaleAnim = useRef(new Animated.Value(1)).current;
+function BubbleKey({ label, onPress, letterStatuses, keyWidth, keyHeight }) {
+  const scaleAnim   = useRef(new Animated.Value(1)).current;
+  const opacityAnim = useRef(new Animated.Value(1)).current;
 
+  // Bubble-pop animation: balloon up briefly, then bounce back.
+  // Pairs perfectly with the bubble_pop.wav sound effect.
   const handlePress = () => {
-    Animated.sequence([
-      Animated.timing(scaleAnim, { toValue: 0.82, duration: 60, useNativeDriver: true }),
-      Animated.spring(scaleAnim, { toValue: 1.0,  friction: 4, useNativeDriver: true }),
+    Animated.parallel([
+      Animated.sequence([
+        Animated.timing(scaleAnim, { toValue: 1.18, duration: 60, useNativeDriver: true }),
+        Animated.timing(scaleAnim, { toValue: 0.85, duration: 50, useNativeDriver: true }),
+        Animated.spring(scaleAnim,  { toValue: 1.0,  friction: 4,  useNativeDriver: true }),
+      ]),
+      Animated.sequence([
+        Animated.timing(opacityAnim, { toValue: 0.55, duration: 60,  useNativeDriver: true }),
+        Animated.timing(opacityAnim, { toValue: 1,    duration: 120, useNativeDriver: true }),
+      ]),
     ]).start();
     onPress(label);
   };
 
   const isSpecial = label === 'DEL' || label === 'OK';
   const status    = letterStatuses[label];
-  let bgColor;
-  if (status) {
-    bgColor = STATUS_BG[status] || '#888';
-  } else if (isSpecial) {
-    bgColor = label === 'OK' ? '#56CF6E' : '#FF6B6B';
-  } else {
-    bgColor = letterColours[label] || '#CCC';
-  }
 
-  const keyW = isSpecial ? keyWidth * 1.5 : keyWidth;
+  // Pick a colour pair: status > special > rainbow
+  let pair;
+  if (status) {
+    pair = STATUS_COLOURS[status];
+  } else if (isSpecial) {
+    pair = label === 'OK' ? ['#56CF6E', '#A8E5B5'] : ['#FF6B6B', '#FFB3B3'];
+  } else {
+    pair = letterColours[label] || ['#CCC', '#EEE'];
+  }
+  const [base, light] = pair;
+
+  const isPill = isSpecial;
+  const w      = isPill ? keyWidth * 1.5 : keyWidth;
+  // For letter keys: equal width and height for a perfect circle bubble.
+  const h      = isPill ? keyHeight : Math.min(keyHeight, w);
+  const radius = isPill ? h / 2 : w / 2;
 
   return (
-    <Animated.View style={{ transform: [{ scale: scaleAnim }] }}>
-      <TouchableOpacity
-        onPress={handlePress}
-        activeOpacity={0.7}
-        style={[
-          styles.key,
-          {
-            width:           keyW,
-            height:          keyHeight,
-            backgroundColor: bgColor,
-            opacity: status === 'absent' ? 0.65 : 1,
-          },
-        ]}
-      >
-        <Text
+    <Animated.View
+      style={{
+        transform: [{ scale: scaleAnim }],
+        opacity:   opacityAnim,
+        margin:    2,
+      }}
+    >
+      <TouchableOpacity onPress={handlePress} activeOpacity={0.9}>
+        <View
           style={[
-            styles.keyText,
-            { fontSize: isSpecial ? Math.round(keyHeight * 0.32) : Math.round(keyHeight * 0.45) },
+            styles.bubble,
+            {
+              width:        w,
+              height:       h,
+              borderRadius: radius,
+              backgroundColor: base,
+            },
           ]}
         >
-          {label === 'DEL' ? '⌫' : label}
-        </Text>
+          {/* Glossy highlight — the top half is brighter */}
+          <LinearGradient
+            colors={[light, base + 'E6']}
+            start={{ x: 0.3, y: 0 }}
+            end={{ x: 0.5, y: 1 }}
+            style={[StyleSheet.absoluteFillObject, { borderRadius: radius }]}
+          />
+          {/* Tiny shine spot — pure-white blob in the upper-left */}
+          <View
+            style={[
+              styles.shine,
+              {
+                width:  w * 0.28,
+                height: h * 0.20,
+                top:    h * 0.12,
+                left:   w * 0.18,
+                borderRadius: w * 0.18,
+              },
+            ]}
+          />
+          {/* Letter / special label */}
+          <Text
+            style={[
+              styles.label,
+              {
+                fontSize: isSpecial ? Math.round(h * 0.30) : Math.round(h * 0.46),
+                opacity: status === 'absent' ? 0.7 : 1,
+              },
+            ]}
+          >
+            {label === 'DEL' ? '⌫' : label}
+          </Text>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   );
@@ -83,23 +140,21 @@ function KeyButton({ label, onPress, letterStatuses, keyWidth, keyHeight }) {
 export default function Keyboard({ onKey, letterStatuses = {} }) {
   const { width: W, height: H } = Dimensions.get('window');
 
-  // Bottom row is widest: 8 letter keys + 2 specials (each 1.5x). Effective slots = 8 + 3 = 11.
-  // The middle and top rows each have 9 letter keys (smaller — 9 < 11 so they're guaranteed to fit).
+  // Bottom row: 8 letters + 2 special pills (each 1.5x). Effective slots = 11.
   const horizontalPadding = 8;
   const gap               = 4;
-  const widestRowSlots    = 11; // 8 letters + 1.5 + 1.5
-  const widestRowKeys     = 10; // 8 letters + DEL + OK = 10 actual keys, 9 gaps between them
+  const widestRowSlots    = 11;
+  const widestRowKeys     = 10;
   const availableW        = W - horizontalPadding * 2 - gap * (widestRowKeys - 1);
   const keyWidth          = Math.floor(availableW / widestRowSlots);
 
-  // Use available vertical space — aim for ~38% of screen for keyboard, capped per-key
   const targetKeyboardH = Math.min(H * 0.42, 360);
   const verticalGap     = 6;
   const rowCount        = 3;
   const keyHeight       = Math.min(
     Math.floor((targetKeyboardH - verticalGap * (rowCount + 1)) / rowCount),
-    Math.round(keyWidth * 1.3),  // never taller than 1.3x width — keeps proportions nice
-    72                            // hard cap so it doesn't get silly on tablets
+    keyWidth,           // never taller than the width — keeps letter keys perfectly circular
+    72,
   );
 
   return (
@@ -107,7 +162,7 @@ export default function Keyboard({ onKey, letterStatuses = {} }) {
       {ROWS.map((row, ri) => (
         <View key={ri} style={[styles.row, { gap, marginVertical: verticalGap / 2 }]}>
           {row.map((label) => (
-            <KeyButton
+            <BubbleKey
               key={label}
               label={label}
               onPress={onKey}
@@ -132,21 +187,28 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'center',
   },
-  key: {
-    borderRadius: 12,
+  bubble: {
     justifyContent: 'center',
     alignItems: 'center',
+    overflow: 'hidden',
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.2,
-    shadowRadius: 3,
+    shadowOpacity: 0.18,
+    shadowRadius: 4,
     elevation: 4,
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,255,255,0.45)',
   },
-  keyText: {
-    fontWeight: '800',
+  shine: {
+    position: 'absolute',
+    backgroundColor: 'rgba(255,255,255,0.55)',
+    transform: [{ rotate: '-12deg' }],
+  },
+  label: {
+    fontWeight: '900',
     color: '#FFFFFF',
     includeFontPadding: false,
-    textShadowColor: 'rgba(0,0,0,0.25)',
+    textShadowColor: 'rgba(0,0,0,0.28)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 2,
   },

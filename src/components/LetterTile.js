@@ -79,6 +79,7 @@ export default function LetterTile({ letter, status, size, shouldReveal, revealD
         {
           width:           size,
           height:          size,
+          borderRadius:    size / 2,
           backgroundColor: colors.bg,
           borderColor:     colors.border,
           transform: [
@@ -103,7 +104,6 @@ export default function LetterTile({ letter, status, size, shouldReveal, revealD
 const styles = StyleSheet.create({
   tile: {
     borderWidth: 3,
-    borderRadius: 10,
     justifyContent: 'center',
     alignItems: 'center',
     margin: 4,
