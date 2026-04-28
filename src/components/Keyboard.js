@@ -143,17 +143,17 @@ function BubbleKey({ label, onPress, letterStatuses, keyWidth, keyHeight }) {
 export default function Keyboard({ onKey, letterStatuses = {} }) {
   const { width: W, height: H } = Dimensions.get('window');
 
-  // Widest letter row has 6 keys. Bottom row is 2 letters + 2 special pills (1.5x each)
-  // = 2 + 3 = 5 slots, narrower than 6 — letters dominate the width.
-  const horizontalPadding = 8;
+  // Widest letter row has 6 keys. Bottom row is DEL+Y+Z+OK = 5 slots (specials 1.5x).
+  const horizontalPadding = 16;   // proper indent from screen edges
   const gap               = 4;
   const widestRowSlots    = 6;
   const widestRowKeys     = 6;
   const availableW        = W - horizontalPadding * 2 - gap * (widestRowKeys - 1);
   const keyWidth          = Math.floor(availableW / widestRowSlots);
 
-  // 30% smaller bubbles — keyboard takes ~22% of screen now.
-  const targetKeyboardH = Math.min(H * 0.22, 300);
+  // Target tall enough that letter keys hit the keyWidth cap below — perfect circles.
+  // 5 rows × keyWidth + gaps fits in ~38% of screen.
+  const targetKeyboardH = Math.min(H * 0.38, 460);
   const verticalGap     = 5;
   const rowCount        = 5;
   const keyHeight       = Math.min(
@@ -185,7 +185,7 @@ export default function Keyboard({ onKey, letterStatuses = {} }) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    paddingHorizontal: 8,
+    paddingHorizontal: 16,
     paddingBottom: 6,
   },
   row: {
